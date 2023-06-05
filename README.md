@@ -56,7 +56,7 @@ macOS: `brew install x264`
 
 Linux: `libopus-dev libopusfile-dev`
 
-macOS: `brew install opus opusfile`
+macOS: `brew install opus`
 
 
 ## Development
