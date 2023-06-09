@@ -11,7 +11,7 @@ import (
 	"github.com/pion/mediadevices/pkg/codec/vpx"
 	"github.com/pion/mediadevices/pkg/prop"
 
-	ourcodec "github.com/edaniels/gostream/codec"
+	ourcodec "github.com/viamrobotics/gostream/codec"
 )
 
 type encoder struct {

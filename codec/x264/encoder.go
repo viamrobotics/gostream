@@ -10,7 +10,7 @@ import (
 	"github.com/pion/mediadevices/pkg/codec/x264"
 	"github.com/pion/mediadevices/pkg/prop"
 
-	ourcodec "github.com/edaniels/gostream/codec"
+	ourcodec "github.com/viamrobotics/gostream/codec"
 )
 
 type encoder struct {

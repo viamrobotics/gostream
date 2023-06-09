@@ -3,7 +3,7 @@ package gostream
 import (
 	"github.com/edaniels/golog"
 
-	"github.com/edaniels/gostream/codec"
+	"github.com/viamrobotics/gostream/codec"
 )
 
 // A StreamConfig describes how a Stream should be managed.

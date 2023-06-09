@@ -9,7 +9,7 @@ import (
 	"github.com/pion/mediadevices/pkg/prop"
 	"go.viam.com/test"
 
-	"github.com/edaniels/gostream"
+	"github.com/viamrobotics/gostream"
 )
 
 func TestReaderClose(t *testing.T) {
