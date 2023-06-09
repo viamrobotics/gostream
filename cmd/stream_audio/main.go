@@ -20,8 +20,8 @@ import (
 	goutils "go.viam.com/utils"
 	hopus "gopkg.in/hraban/opus.v2"
 
-	"github.com/edaniels/gostream"
-	"github.com/edaniels/gostream/codec/opus"
+	"github.com/viamrobotics/gostream"
+	"github.com/viamrobotics/gostream/codec/opus"
 )
 
 func main() {

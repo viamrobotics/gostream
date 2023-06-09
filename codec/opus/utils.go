@@ -5,8 +5,8 @@ import (
 
 	"github.com/edaniels/golog"
 
-	"github.com/edaniels/gostream"
-	"github.com/edaniels/gostream/codec"
+	"github.com/viamrobotics/gostream"
+	"github.com/viamrobotics/gostream/codec"
 )
 
 // DefaultStreamConfig configures Opus as the audio encoder for a stream.

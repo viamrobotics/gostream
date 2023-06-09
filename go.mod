@@ -1,4 +1,4 @@
-module github.com/edaniels/gostream
+module github.com/viamrobotics/gostream
 
 go 1.18
 
