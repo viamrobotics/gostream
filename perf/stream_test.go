@@ -3,13 +3,19 @@ package perf
 import (
 	"context"
 	"flag"
-	"github.com/viamrobotics/gostream"
-	"go.viam.com/test"
-	"golang.org/x/time/rate"
 	"image"
 	"testing"
 	"time"
+
+	"go.viam.com/test"
+	"golang.org/x/time/rate"
+
+	"github.com/viamrobotics/gostream"
 )
+
+func init() {
+	_ = flag.Set("test.benchtime", "100x")
+}
 
 type reader struct {
 	img     image.Image
@@ -99,9 +105,6 @@ func BenchmarkStream_60FPS(b *testing.B) {
 }
 
 func BenchmarkStream_30FPS_2Streams(b *testing.B) {
-	err := flag.Set("test.benchtime", "100x")
-	test.That(b, err, test.ShouldBeNil)
-
 	r := newReader(30)
 	s := gostream.NewEmbeddedVideoStreamFromReader(r)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -130,9 +133,6 @@ func BenchmarkStream_30FPS_2Streams(b *testing.B) {
 }
 
 func BenchmarkStream_30FPS_3Streams(b *testing.B) {
-	err := flag.Set("test.benchtime", "100x")
-	test.That(b, err, test.ShouldBeNil)
-
 	r := newReader(30)
 	s := gostream.NewEmbeddedVideoStreamFromReader(r)
 	ctx, cancel := context.WithCancel(context.Background())
