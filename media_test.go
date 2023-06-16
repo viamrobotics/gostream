@@ -3,13 +3,12 @@ package gostream
 import (
 	"bytes"
 	"context"
+	"github.com/pion/mediadevices/pkg/prop"
+	"go.viam.com/test"
 	"image"
 	"image/png"
 	"os"
 	"testing"
-
-	"github.com/pion/mediadevices/pkg/prop"
-	"go.viam.com/test"
 )
 
 type imageSource struct {
