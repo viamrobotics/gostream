@@ -16,7 +16,7 @@ type reader struct {
 	limiter *rate.Limiter
 }
 
-func NewReader(fps float64) *reader {
+func newReader(fps float64) *reader {
 	limiter := rate.NewLimiter(rate.Limit(fps), 1)
 	return &reader{
 		img:     image.Image(image.Rect(0, 0, 0, 0)),
@@ -45,13 +45,13 @@ func stream(ctx context.Context, b *testing.B, s gostream.VideoStream) {
 
 const SecondNs = 1000000000.0 // second in nanoseconds
 
-func incrementAverage(avgOld float64, valNew float64, sizeNew float64) float64 {
+func incrementAverage(avgOld, valNew, sizeNew float64) float64 {
 	avgNew := (avgOld) + (valNew-avgOld)/sizeNew
 	return avgNew
 }
 
 func BenchmarkStream_30FPS(b *testing.B) {
-	r := NewReader(30)
+	r := newReader(30)
 	s := gostream.NewEmbeddedVideoStreamFromReader(r)
 
 	var avgNs float64
@@ -71,11 +71,11 @@ func BenchmarkStream_30FPS(b *testing.B) {
 		avgNs = incrementAverage(avgNs, float64(elapsedNs), float64(count))
 	}
 
-	b.ReportMetric(SecondNs/float64(avgNs), "fps")
+	b.ReportMetric(SecondNs/avgNs, "fps")
 }
 
 func BenchmarkStream_60FPS(b *testing.B) {
-	r := NewReader(60)
+	r := newReader(60)
 	s := gostream.NewEmbeddedVideoStreamFromReader(r)
 
 	var avgNs float64
@@ -95,14 +95,14 @@ func BenchmarkStream_60FPS(b *testing.B) {
 		avgNs = incrementAverage(avgNs, float64(elapsedNs), float64(count))
 	}
 
-	b.ReportMetric(SecondNs/float64(avgNs), "fps")
+	b.ReportMetric(SecondNs/avgNs, "fps")
 }
 
 func BenchmarkStream_30FPS_2Streams(b *testing.B) {
 	err := flag.Set("test.benchtime", "100x")
 	test.That(b, err, test.ShouldBeNil)
 
-	r := NewReader(30)
+	r := newReader(30)
 	s := gostream.NewEmbeddedVideoStreamFromReader(r)
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -126,14 +126,14 @@ func BenchmarkStream_30FPS_2Streams(b *testing.B) {
 	}
 
 	cancel()
-	b.ReportMetric(SecondNs/float64(avgNs), "fps")
+	b.ReportMetric(SecondNs/avgNs, "fps")
 }
 
 func BenchmarkStream_30FPS_3Streams(b *testing.B) {
 	err := flag.Set("test.benchtime", "100x")
 	test.That(b, err, test.ShouldBeNil)
 
-	r := NewReader(30)
+	r := newReader(30)
 	s := gostream.NewEmbeddedVideoStreamFromReader(r)
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -158,5 +158,5 @@ func BenchmarkStream_30FPS_3Streams(b *testing.B) {
 	}
 
 	cancel()
-	b.ReportMetric(SecondNs/float64(avgNs), "fps")
+	b.ReportMetric(SecondNs/avgNs, "fps")
 }
