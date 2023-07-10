@@ -11,7 +11,7 @@ import (
 	"github.com/pion/mediadevices/pkg/prop"
 	"go.opencensus.io/trace"
 
-	ourcodec "github.com/edaniels/gostream/codec"
+	ourcodec "github.com/viamrobotics/gostream/codec"
 )
 
 type encoder struct {

@@ -14,7 +14,7 @@ import (
 	"github.com/pion/mediadevices/pkg/wave"
 	"go.viam.com/utils"
 
-	ourcodec "github.com/edaniels/gostream/codec"
+	ourcodec "github.com/viamrobotics/gostream/codec"
 )
 
 type encoder struct {

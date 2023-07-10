@@ -18,7 +18,7 @@ import (
 	"goji.io"
 	"goji.io/pat"
 
-	streampb "github.com/edaniels/gostream/proto/stream/v1"
+	streampb "github.com/viamrobotics/gostream/proto/stream/v1"
 )
 
 // A StandaloneStreamServer is a convenience helper for solely streaming a series

@@ -5,7 +5,7 @@ import (
 	"context"
 	"image"
 
-	ourcodec "github.com/edaniels/gostream/codec"
+	ourcodec "github.com/viamrobotics/gostream/codec"
 
 	"github.com/edaniels/golog"
 	"github.com/pion/mediadevices/pkg/codec"
