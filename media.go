@@ -88,7 +88,7 @@ func (mrf mediaReaderFuncNoCtx[T]) Close(ctx context.Context) error {
 // ReadMedia gets a single media from a source. Using this has less of a guarantee
 // than MediaSource.Stream that the Nth media element follows the N-1th media element.
 func ReadMedia[T any](ctx context.Context, source MediaSource[T]) (T, func(), error) {
-	_, span := trace.StartSpan(ctx, "gostream::ReadMedia")
+	ctx, span := trace.StartSpan(ctx, "gostream::ReadMedia")
 	defer span.End()
 
 	if reader, ok := source.(MediaReader[T]); ok {
@@ -198,8 +198,7 @@ func newMediaSource[T, U any](d driver.Driver, r MediaReader[T], p U) MediaSourc
 }
 
 func (pc *producerConsumer[T, U]) start() {
-	var span *trace.Span
-	pc.rootCancelCtx, span = trace.StartSpan(pc.rootCancelCtx, "gostream::producerConsumer::start")
+	startLocalCtx, span := trace.StartSpan(pc.rootCancelCtx, "gostream::producerConsumer::start")
 
 	pc.listenersMu.Lock()
 	defer pc.listenersMu.Unlock()
@@ -223,7 +222,7 @@ func (pc *producerConsumer[T, U]) start() {
 
 			waitForNext := func() (int64, bool) {
 				var waitForNextSpan *trace.Span
-				pc.rootCancelCtx, waitForNextSpan = trace.StartSpan(pc.rootCancelCtx, "gostream::producerConsumer::waitForNext")
+				_, waitForNextSpan = trace.StartSpan(startLocalCtx, "gostream::producerConsumer::waitForNext")
 				defer waitForNextSpan.End()
 
 				for {
@@ -257,7 +256,7 @@ func (pc *producerConsumer[T, U]) start() {
 			}
 
 			var doReadSpan *trace.Span
-			pc.rootCancelCtx, doReadSpan = trace.StartSpan(pc.rootCancelCtx, "gostream::producerConsumer (anonymous function to read)")
+			startLocalCtx, doReadSpan = trace.StartSpan(startLocalCtx, "gostream::producerConsumer (anonymous function to read)")
 			func() {
 				defer func() {
 					pc.producerCond.L.Lock()
@@ -274,7 +273,8 @@ func (pc *producerConsumer[T, U]) start() {
 				} else {
 					first = false
 				}
-				media, release, err := pc.readWrapper.Read(pc.cancelCtx)
+				cancelCtxWithSpan := trace.NewContext(pc.cancelCtx, doReadSpan)
+				media, release, err := pc.readWrapper.Read(cancelCtxWithSpan)
 				ref := utils.NewRefCountedValue(struct{}{})
 				ref.Ref()
 
@@ -505,8 +505,9 @@ func (ms *mediaSource[T, U]) Stream(ctx context.Context, errHandlers ...ErrorHan
 		producerCond := sync.NewCond(condMu)
 		consumerCond := sync.NewCond(condMu.RLocker())
 
+		rootCancelCtxWithSpan := trace.NewContext(ms.rootCancelCtx, trace.FromContext(ctx))
 		prodCon = &producerConsumer[T, U]{
-			rootCancelCtx: ms.rootCancelCtx,
+			rootCancelCtx: rootCancelCtxWithSpan,
 			cancelCtx:     cancelCtx,
 			cancel:        cancel,
 			mimeType:      mimeType,
