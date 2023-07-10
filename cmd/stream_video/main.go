@@ -11,9 +11,9 @@ import (
 	"go.uber.org/multierr"
 	goutils "go.viam.com/utils"
 
-	"github.com/edaniels/gostream"
-	"github.com/edaniels/gostream/codec/vpx"
-	"github.com/edaniels/gostream/codec/x264"
+	"github.com/viamrobotics/gostream"
+	"github.com/viamrobotics/gostream/codec/vpx"
+	"github.com/viamrobotics/gostream/codec/x264"
 )
 
 func main() {

@@ -61,7 +61,7 @@ linters-settings:
     sections:
       - standard
       - default
-      - prefix(github.com/edaniels/gostream)
+      - prefix(github.com/viamrobotics/gostream)
   gofumpt:
     lang-version: "1.18"
     extra-rules: true

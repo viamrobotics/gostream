@@ -17,7 +17,7 @@ import (
 	"github.com/pion/webrtc/v3"
 	"go.viam.com/utils"
 
-	"github.com/edaniels/gostream/codec"
+	"github.com/viamrobotics/gostream/codec"
 )
 
 // A Stream is sink that accepts any image frames for the purpose

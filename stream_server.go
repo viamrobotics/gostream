@@ -11,7 +11,7 @@ import (
 	"go.viam.com/utils"
 	"go.viam.com/utils/rpc"
 
-	streampb "github.com/edaniels/gostream/proto/stream/v1"
+	streampb "github.com/viamrobotics/gostream/proto/stream/v1"
 )
 
 // StreamAlreadyRegisteredError indicates that a stream has a name that is already registered on

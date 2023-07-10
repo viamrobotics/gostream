@@ -12,9 +12,9 @@ import (
 	"go.uber.org/multierr"
 	goutils "go.viam.com/utils"
 
-	"github.com/edaniels/gostream"
-	"github.com/edaniels/gostream/codec/opus"
-	"github.com/edaniels/gostream/codec/vpx"
+	"github.com/viamrobotics/gostream"
+	"github.com/viamrobotics/gostream/codec/opus"
+	"github.com/viamrobotics/gostream/codec/vpx"
 )
 
 func main() {

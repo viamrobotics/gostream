@@ -1,8 +1,8 @@
 package mmal
 
 import (
-	"github.com/edaniels/gostream"
-	"github.com/edaniels/gostream/codec"
+	"github.com/viamrobotics/gostream"
+	"github.com/viamrobotics/gostream/codec"
 
 	"github.com/edaniels/golog"
 )
