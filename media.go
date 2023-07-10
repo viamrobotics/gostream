@@ -10,6 +10,7 @@ import (
 	"github.com/pion/mediadevices/pkg/driver/camera"
 	"github.com/pion/mediadevices/pkg/prop"
 	"github.com/pkg/errors"
+	"go.opencensus.io/trace"
 	"go.uber.org/multierr"
 	"go.viam.com/utils"
 )
@@ -58,6 +59,8 @@ type (
 
 // Read calls the underlying function to get a media.
 func (mrf MediaReaderFunc[T]) Read(ctx context.Context) (T, func(), error) {
+	ctx, span := trace.StartSpan(ctx, "gostream::MediaReaderFunc::Read")
+	defer span.End()
 	return mrf(ctx)
 }
 
@@ -71,7 +74,9 @@ func (mrf MediaReaderFunc[T]) Close(ctx context.Context) error {
 type mediaReaderFuncNoCtx[T any] func() (T, func(), error)
 
 // Read calls the underlying function to get a media.
-func (mrf mediaReaderFuncNoCtx[T]) Read(_ context.Context) (T, func(), error) {
+func (mrf mediaReaderFuncNoCtx[T]) Read(ctx context.Context) (T, func(), error) {
+	_, span := trace.StartSpan(ctx, "gostream::MediaReaderFuncNoCtx::Read")
+	defer span.End()
 	return mrf()
 }
 
@@ -83,6 +88,9 @@ func (mrf mediaReaderFuncNoCtx[T]) Close(ctx context.Context) error {
 // ReadMedia gets a single media from a source. Using this has less of a guarantee
 // than MediaSource.Stream that the Nth media element follows the N-1th media element.
 func ReadMedia[T any](ctx context.Context, source MediaSource[T]) (T, func(), error) {
+	_, span := trace.StartSpan(ctx, "gostream::ReadMedia")
+	defer span.End()
+
 	if reader, ok := source.(MediaReader[T]); ok {
 		// more efficient if there is a direct way to read
 		return reader.Read(ctx)
@@ -190,6 +198,9 @@ func newMediaSource[T, U any](d driver.Driver, r MediaReader[T], p U) MediaSourc
 }
 
 func (pc *producerConsumer[T, U]) start() {
+	var span *trace.Span
+	pc.rootCancelCtx, span = trace.StartSpan(pc.rootCancelCtx, "gostream::producerConsumer::start")
+
 	pc.listenersMu.Lock()
 	defer pc.listenersMu.Unlock()
 
@@ -202,6 +213,8 @@ func (pc *producerConsumer[T, U]) start() {
 	pc.activeBackgroundWorkers.Add(1)
 
 	utils.ManagedGo(func() {
+		defer span.End()
+
 		first := true
 		for {
 			if pc.cancelCtx.Err() != nil {
@@ -209,6 +222,10 @@ func (pc *producerConsumer[T, U]) start() {
 			}
 
 			waitForNext := func() (int64, bool) {
+				var waitForNextSpan *trace.Span
+				pc.rootCancelCtx, waitForNextSpan = trace.StartSpan(pc.rootCancelCtx, "gostream::producerConsumer::waitForNext")
+				defer waitForNextSpan.End()
+
 				for {
 					pc.producerCond.L.Lock()
 					requests := atomic.LoadInt64(&pc.interestedConsumers)
@@ -239,6 +256,9 @@ func (pc *producerConsumer[T, U]) start() {
 				return
 			}
 
+			var doReadSpan *trace.Span
+			pc.rootCancelCtx, doReadSpan = trace.StartSpan(pc.rootCancelCtx, "gostream::producerConsumer (anonymous function to read)")
+			defer doReadSpan.End()
 			func() {
 				defer func() {
 					pc.producerCond.L.Lock()
@@ -296,6 +316,10 @@ func (pc *producerConsumer[T, U]) Stop() {
 
 // assumes stateMu lock is held.
 func (pc *producerConsumer[T, U]) stop() {
+	var span *trace.Span
+	pc.rootCancelCtx, span = trace.StartSpan(pc.rootCancelCtx, "gostream::producerConsumer::stop")
+	defer span.End()
+
 	pc.cancel()
 
 	pc.producerCond.L.Lock()
@@ -313,6 +337,10 @@ func (pc *producerConsumer[T, U]) stop() {
 }
 
 func (pc *producerConsumer[T, U]) stopOne() {
+	var span *trace.Span
+	pc.rootCancelCtx, span = trace.StartSpan(pc.rootCancelCtx, "gostream::producerConsumer::stopOne")
+	defer span.End()
+
 	pc.stateMu.Lock()
 	defer pc.stateMu.Unlock()
 	pc.listenersMu.Lock()
@@ -352,6 +380,9 @@ type mediaStreamFromChannel[T any] struct {
 }
 
 func (ms *mediaStreamFromChannel[T]) Next(ctx context.Context) (T, func(), error) {
+	ctx, span := trace.StartSpan(ctx, "gostream::mediaStreamFromChannel::Next")
+	defer span.End()
+
 	var zero T
 	select {
 	case <-ms.cancelCtx.Done():
@@ -377,6 +408,9 @@ type mediaStream[T any, U any] struct {
 }
 
 func (ms *mediaStream[T, U]) Next(ctx context.Context) (T, func(), error) {
+	ctx, nextSpan := trace.StartSpan(ctx, "gostream::mediaStream::Next")
+	defer nextSpan.End()
+
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
 	// lock keeps us sequential and prevents misuse
@@ -432,6 +466,9 @@ func (ms *mediaStream[T, U]) Next(ctx context.Context) (T, func(), error) {
 			return zero, nil, err
 		}
 	}
+
+	ctx, prodConLockSpan := trace.StartSpan(ctx, "gostream::mediaStream::Next (waiting for ms.prodCon lock)")
+	defer prodConLockSpan.End()
 
 	// hold a read lock long enough before current.Ref can be dereffed
 	// due to a new current being set.
