@@ -258,7 +258,6 @@ func (pc *producerConsumer[T, U]) start() {
 
 			var doReadSpan *trace.Span
 			pc.rootCancelCtx, doReadSpan = trace.StartSpan(pc.rootCancelCtx, "gostream::producerConsumer (anonymous function to read)")
-			defer doReadSpan.End()
 			func() {
 				defer func() {
 					pc.producerCond.L.Lock()
@@ -296,6 +295,7 @@ func (pc *producerConsumer[T, U]) start() {
 					lastRelease()
 				}
 			}()
+			doReadSpan.End()
 		}
 	}, func() { defer pc.activeBackgroundWorkers.Done(); pc.cancel() })
 }
