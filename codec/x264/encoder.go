@@ -9,7 +9,6 @@ import (
 	"github.com/pion/mediadevices/pkg/codec"
 	"github.com/pion/mediadevices/pkg/codec/x264"
 	"github.com/pion/mediadevices/pkg/prop"
-	"go.opencensus.io/trace"
 
 	ourcodec "github.com/viamrobotics/gostream/codec"
 )
@@ -58,9 +57,6 @@ func (v *encoder) Read() (img image.Image, release func(), err error) {
 
 // Encode asks the codec to process the given image.
 func (v *encoder) Encode(ctx context.Context, img image.Image) ([]byte, error) {
-	_, span := trace.StartSpan(ctx, "x264::Encode")
-	defer span.End()
-
 	v.img = img
 	data, release, err := v.codec.Read()
 	dataCopy := make([]byte, len(data))

@@ -258,13 +258,13 @@ func (pc *producerConsumer[T, U]) start() {
 			func() {
 				var doReadSpan *trace.Span
 				startLocalCtx, doReadSpan = trace.StartSpan(startLocalCtx, "gostream::producerConsumer (anonymous function to read)")
-				defer doReadSpan.End()
 
 				defer func() {
 					pc.producerCond.L.Lock()
 					atomic.AddInt64(&pc.interestedConsumers, -requests)
 					pc.consumerCond.Broadcast()
 					pc.producerCond.L.Unlock()
+					doReadSpan.End()
 				}()
 
 				var lastRelease func()
@@ -275,7 +275,11 @@ func (pc *producerConsumer[T, U]) start() {
 				} else {
 					first = false
 				}
+
+				startLocalCtx, span := trace.StartSpan(startLocalCtx, "gostream::producerConsumer::readWrapper::Read")
 				media, release, err := pc.readWrapper.Read(startLocalCtx)
+				span.End()
+
 				ref := utils.NewRefCountedValue(struct{}{})
 				ref.Ref()
 
@@ -336,8 +340,14 @@ func (pc *producerConsumer[T, U]) stop() {
 }
 
 func (pc *producerConsumer[T, U]) stopOne() {
-	_, span := trace.StartSpan(pc.cancelCtx, "gostream::producerConsumer::stopOne")
+	// We want to create a new span that lasts the scope of this function and no
+	// further, so we have to modify the cancelCtx and then revert it at the end
+	// of the function to what it was before.
+	originalCancelCtx := pc.cancelCtx
+	var span *trace.Span
+	pc.cancelCtx, span = trace.StartSpan(pc.cancelCtx, "gostream::producerConsumer::stopOne")
 	defer span.End()
+	defer func() { pc.cancelCtx = originalCancelCtx }()
 
 	pc.stateMu.Lock()
 	defer pc.stateMu.Unlock()
@@ -437,6 +447,9 @@ func (ms *mediaStream[T, U]) Next(ctx context.Context) (T, func(), error) {
 	}
 
 	waitForNext := func() error {
+		_, span := trace.StartSpan(ctx, "gostream::mediaStream::Next::waitForNext")
+		defer span.End()
+
 		ms.prodCon.consumerCond.Wait()
 		ms.prodCon.consumerCond.L.Unlock()
 		if err := ms.cancelCtx.Err(); err != nil {
@@ -481,6 +494,17 @@ func (ms *mediaStream[T, U]) Next(ctx context.Context) (T, func(), error) {
 }
 
 func (ms *mediaStream[T, U]) Close(ctx context.Context) error {
+	// We want to create a new span that lasts the scope of this function and no
+	// further, so we have to modify the cancelCtx and then revert it at the end
+	// of the function to what it was before.
+	originalCancelCtx := ms.prodCon.cancelCtx
+	parentSpan := trace.FromContext(ctx)
+	ms.prodCon.cancelCtx = trace.NewContext(ms.prodCon.cancelCtx, parentSpan)
+	var span *trace.Span
+	ms.prodCon.cancelCtx, span = trace.StartSpan(ms.prodCon.cancelCtx, "gostream::mediaStream::Close")
+	defer span.End()
+	defer func() { ms.prodCon.cancelCtx = originalCancelCtx }()
+
 	ms.cancel()
 	ms.prodCon.errHandlersMu.Lock()
 	delete(ms.prodCon.errHandlers, ms)
