@@ -488,16 +488,12 @@ func (ms *mediaStream[T, U]) Next(ctx context.Context) (T, func(), error) {
 }
 
 func (ms *mediaStream[T, U]) Close(ctx context.Context) error {
-	// We want to create a new span that lasts the scope of this function and no
-	// further, so we have to modify the cancelCtx and then revert it at the end
-	// of the function to what it was before.
-	originalCancelCtx := ms.prodCon.cancelCtx
-	parentSpan := trace.FromContext(ctx)
-	ms.prodCon.cancelCtx = trace.NewContext(ms.prodCon.cancelCtx, parentSpan)
+	if parentSpan := trace.FromContext(ctx); parentSpan != nil {
+		ms.prodCon.cancelCtx = trace.NewContext(ms.prodCon.cancelCtx, parentSpan)
+	}
 	var span *trace.Span
 	ms.prodCon.cancelCtx, span = trace.StartSpan(ms.prodCon.cancelCtx, "gostream::mediaStream::Close")
 	defer span.End()
-	defer func() { ms.prodCon.cancelCtx = originalCancelCtx }()
 
 	ms.cancel()
 	ms.prodCon.errHandlersMu.Lock()
