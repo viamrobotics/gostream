@@ -56,7 +56,7 @@ func (v *encoder) Read() (img image.Image, release func(), err error) {
 }
 
 // Encode asks the codec to process the given image.
-func (v *encoder) Encode(ctx context.Context, img image.Image) ([]byte, error) {
+func (v *encoder) Encode(_ context.Context, img image.Image) ([]byte, error) {
 	v.img = img
 	data, release, err := v.codec.Read()
 	dataCopy := make([]byte, len(data))

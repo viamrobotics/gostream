@@ -340,14 +340,8 @@ func (pc *producerConsumer[T, U]) stop() {
 }
 
 func (pc *producerConsumer[T, U]) stopOne() {
-	// We want to create a new span that lasts the scope of this function and no
-	// further, so we have to modify the cancelCtx and then revert it at the end
-	// of the function to what it was before.
-	originalCancelCtx := pc.cancelCtx
-	var span *trace.Span
-	pc.cancelCtx, span = trace.StartSpan(pc.cancelCtx, "gostream::producerConsumer::stopOne")
+	_, span := trace.StartSpan(pc.cancelCtx, "gostream::producerConsumer::stopOne")
 	defer span.End()
-	defer func() { pc.cancelCtx = originalCancelCtx }()
 
 	pc.stateMu.Lock()
 	defer pc.stateMu.Unlock()
