@@ -8,6 +8,7 @@ require (
 	github.com/edaniels/golinters v0.0.5-0.20210512224240-495d3b8eed19
 	github.com/edaniels/golog v0.0.0-20230215213219-28954395e8d0
 	github.com/gen2brain/malgo v0.11.10
+	github.com/giorgisio/goav v0.1.0
 	github.com/golangci/golangci-lint v1.51.2
 	github.com/google/uuid v1.3.0
 	github.com/gotesttools/gotestfmt/v2 v2.4.1
@@ -17,6 +18,7 @@ require (
 	github.com/pion/rtp v1.7.13
 	github.com/pion/webrtc/v3 v3.2.11
 	github.com/pkg/errors v0.9.1
+	github.com/stretchr/testify v1.8.4
 	go.opencensus.io v0.24.0
 	go.uber.org/multierr v1.9.0
 	go.viam.com/test v1.1.0
@@ -219,7 +221,6 @@ require (
 	github.com/ssgreg/nlreturn/v2 v2.2.1 // indirect
 	github.com/stbenjam/no-sprintf-host-port v0.1.1 // indirect
 	github.com/stretchr/objx v0.5.0 // indirect
-	github.com/stretchr/testify v1.8.4 // indirect
 	github.com/subosito/gotenv v1.4.1 // indirect
 	github.com/t-yuki/gocover-cobertura v0.0.0-20180217150009-aaee18c8195c // indirect
 	github.com/tdakkota/asciicheck v0.1.1 // indirect

@@ -120,6 +120,7 @@ type mediaSource[T any, U any] struct {
 type producerConsumer[T any, U any] struct {
 	rootCancelCtx           context.Context
 	cancelCtx               context.Context
+	cancelCtxMu             *sync.RWMutex
 	cancel                  func()
 	mimeType                string
 	activeBackgroundWorkers sync.WaitGroup
@@ -198,7 +199,14 @@ func newMediaSource[T, U any](d driver.Driver, r MediaReader[T], p U) MediaSourc
 }
 
 func (pc *producerConsumer[T, U]) start() {
-	startLocalCtx, span := trace.StartSpan(pc.cancelCtx, "gostream::producerConsumer::start")
+	var startLocalCtx context.Context
+	var span *trace.Span
+
+	func() {
+		pc.cancelCtxMu.RLock()
+		defer pc.cancelCtxMu.RUnlock()
+		startLocalCtx, span = trace.StartSpan(pc.cancelCtx, "gostream::producerConsumer::start")
+	}()
 
 	pc.listenersMu.Lock()
 	defer pc.listenersMu.Unlock()
@@ -217,9 +225,12 @@ func (pc *producerConsumer[T, U]) start() {
 
 		first := true
 		for {
+			pc.cancelCtxMu.RLock()
 			if pc.cancelCtx.Err() != nil {
+				pc.cancelCtxMu.RUnlock()
 				return
 			}
+			pc.cancelCtxMu.RUnlock()
 
 			waitForNext := func() (int64, bool) {
 				_, waitForNextSpan := trace.StartSpan(startLocalCtx, "gostream::producerConsumer::waitForNext")
@@ -229,10 +240,13 @@ func (pc *producerConsumer[T, U]) start() {
 					pc.producerCond.L.Lock()
 					requests := atomic.LoadInt64(&pc.interestedConsumers)
 					if requests == 0 {
+						pc.cancelCtxMu.RLock()
 						if err := pc.cancelCtx.Err(); err != nil {
+							pc.cancelCtxMu.RUnlock()
 							pc.producerCond.L.Unlock()
 							return 0, false
 						}
+						pc.cancelCtxMu.RUnlock()
 
 						pc.producerCond.Wait()
 						requests = atomic.LoadInt64(&pc.interestedConsumers)
@@ -251,9 +265,12 @@ func (pc *producerConsumer[T, U]) start() {
 				return
 			}
 
+			pc.cancelCtxMu.RLock()
 			if err := pc.cancelCtx.Err(); err != nil {
+				pc.cancelCtxMu.RUnlock()
 				return
 			}
+			pc.cancelCtxMu.RUnlock()
 
 			func() {
 				var doReadSpan *trace.Span
@@ -320,7 +337,13 @@ func (pc *producerConsumer[T, U]) Stop() {
 
 // assumes stateMu lock is held.
 func (pc *producerConsumer[T, U]) stop() {
-	_, span := trace.StartSpan(pc.cancelCtx, "gostream::producerConsumer::stop")
+	var span *trace.Span
+	func() {
+		pc.cancelCtxMu.RLock()
+		defer pc.cancelCtxMu.RUnlock()
+		_, span = trace.StartSpan(pc.cancelCtx, "gostream::producerConsumer::stop")
+	}()
+
 	defer span.End()
 
 	pc.cancel()
@@ -335,12 +358,20 @@ func (pc *producerConsumer[T, U]) stop() {
 
 	// reset
 	cancelCtx, cancel := context.WithCancel(WithMIMETypeHint(pc.rootCancelCtx, pc.mimeType))
+	pc.cancelCtxMu.Lock()
 	pc.cancelCtx = cancelCtx
+	pc.cancelCtxMu.Unlock()
 	pc.cancel = cancel
 }
 
 func (pc *producerConsumer[T, U]) stopOne() {
-	_, span := trace.StartSpan(pc.cancelCtx, "gostream::producerConsumer::stopOne")
+	var span *trace.Span
+	func() {
+		pc.cancelCtxMu.RLock()
+		defer pc.cancelCtxMu.RUnlock()
+		_, span = trace.StartSpan(pc.cancelCtx, "gostream::producerConsumer::stopOne")
+	}()
+
 	defer span.End()
 
 	pc.stateMu.Lock()
@@ -489,10 +520,20 @@ func (ms *mediaStream[T, U]) Next(ctx context.Context) (T, func(), error) {
 
 func (ms *mediaStream[T, U]) Close(ctx context.Context) error {
 	if parentSpan := trace.FromContext(ctx); parentSpan != nil {
-		ms.prodCon.cancelCtx = trace.NewContext(ms.prodCon.cancelCtx, parentSpan)
+		func() {
+			ms.prodCon.cancelCtxMu.Lock()
+			defer ms.prodCon.cancelCtxMu.Unlock()
+			ms.prodCon.cancelCtx = trace.NewContext(ms.prodCon.cancelCtx, parentSpan)
+		}()
 	}
+
 	var span *trace.Span
-	ms.prodCon.cancelCtx, span = trace.StartSpan(ms.prodCon.cancelCtx, "gostream::mediaStream::Close")
+	func() {
+		ms.prodCon.cancelCtxMu.Lock()
+		defer ms.prodCon.cancelCtxMu.Unlock()
+		ms.prodCon.cancelCtx, span = trace.StartSpan(ms.prodCon.cancelCtx, "gostream::mediaStream::Close")
+	}()
+
 	defer span.End()
 
 	ms.cancel()
@@ -520,6 +561,7 @@ func (ms *mediaSource[T, U]) Stream(ctx context.Context, errHandlers ...ErrorHan
 		prodCon = &producerConsumer[T, U]{
 			rootCancelCtx: ms.rootCancelCtx,
 			cancelCtx:     cancelCtx,
+			cancelCtxMu:   &sync.RWMutex{},
 			cancel:        cancel,
 			mimeType:      mimeType,
 			producerCond:  producerCond,
@@ -551,10 +593,20 @@ func (ms *mediaSource[T, U]) Stream(ctx context.Context, errHandlers ...ErrorHan
 	defer prodCon.stateMu.Unlock()
 
 	if currentSpan := trace.FromContext(ctx); currentSpan != nil {
-		prodCon.cancelCtx = trace.NewContext(prodCon.cancelCtx, currentSpan)
+		func() {
+			prodCon.cancelCtxMu.Lock()
+			defer prodCon.cancelCtxMu.Unlock()
+			prodCon.cancelCtx = trace.NewContext(prodCon.cancelCtx, currentSpan)
+		}()
 	}
 
-	cancelCtx, cancel := context.WithCancel(prodCon.cancelCtx)
+	var cancelCtx context.Context
+	var cancel context.CancelFunc
+	func() {
+		prodCon.cancelCtxMu.RLock()
+		cancelCtx, cancel = context.WithCancel(prodCon.cancelCtx)
+		prodCon.cancelCtxMu.RUnlock()
+	}()
 	stream := &mediaStream[T, U]{
 		ms:        ms,
 		prodCon:   prodCon,
