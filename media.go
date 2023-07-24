@@ -10,6 +10,7 @@ import (
 	"github.com/pion/mediadevices/pkg/driver/camera"
 	"github.com/pion/mediadevices/pkg/prop"
 	"github.com/pkg/errors"
+	"go.opencensus.io/trace"
 	"go.uber.org/multierr"
 	"go.viam.com/utils"
 )
@@ -58,6 +59,8 @@ type (
 
 // Read calls the underlying function to get a media.
 func (mrf MediaReaderFunc[T]) Read(ctx context.Context) (T, func(), error) {
+	ctx, span := trace.StartSpan(ctx, "gostream::MediaReaderFunc::Read")
+	defer span.End()
 	return mrf(ctx)
 }
 
@@ -71,7 +74,9 @@ func (mrf MediaReaderFunc[T]) Close(ctx context.Context) error {
 type mediaReaderFuncNoCtx[T any] func() (T, func(), error)
 
 // Read calls the underlying function to get a media.
-func (mrf mediaReaderFuncNoCtx[T]) Read(_ context.Context) (T, func(), error) {
+func (mrf mediaReaderFuncNoCtx[T]) Read(ctx context.Context) (T, func(), error) {
+	_, span := trace.StartSpan(ctx, "gostream::MediaReaderFuncNoCtx::Read")
+	defer span.End()
 	return mrf()
 }
 
@@ -83,6 +88,9 @@ func (mrf mediaReaderFuncNoCtx[T]) Close(ctx context.Context) error {
 // ReadMedia gets a single media from a source. Using this has less of a guarantee
 // than MediaSource.Stream that the Nth media element follows the N-1th media element.
 func ReadMedia[T any](ctx context.Context, source MediaSource[T]) (T, func(), error) {
+	ctx, span := trace.StartSpan(ctx, "gostream::ReadMedia")
+	defer span.End()
+
 	if reader, ok := source.(MediaReader[T]); ok {
 		// more efficient if there is a direct way to read
 		return reader.Read(ctx)
@@ -190,18 +198,23 @@ func newMediaSource[T, U any](d driver.Driver, r MediaReader[T], p U) MediaSourc
 }
 
 func (pc *producerConsumer[T, U]) start() {
+	startLocalCtx, span := trace.StartSpan(pc.cancelCtx, "gostream::producerConsumer::start")
+
 	pc.listenersMu.Lock()
 	defer pc.listenersMu.Unlock()
 
 	pc.listeners++
 
 	if pc.listeners != 1 {
+		span.End()
 		return
 	}
 
 	pc.activeBackgroundWorkers.Add(1)
 
 	utils.ManagedGo(func() {
+		defer span.End()
+
 		first := true
 		for {
 			if pc.cancelCtx.Err() != nil {
@@ -209,6 +222,9 @@ func (pc *producerConsumer[T, U]) start() {
 			}
 
 			waitForNext := func() (int64, bool) {
+				_, waitForNextSpan := trace.StartSpan(startLocalCtx, "gostream::producerConsumer::waitForNext")
+				defer waitForNextSpan.End()
+
 				for {
 					pc.producerCond.L.Lock()
 					requests := atomic.LoadInt64(&pc.interestedConsumers)
@@ -240,11 +256,15 @@ func (pc *producerConsumer[T, U]) start() {
 			}
 
 			func() {
+				var doReadSpan *trace.Span
+				startLocalCtx, doReadSpan = trace.StartSpan(startLocalCtx, "gostream::producerConsumer (anonymous function to read)")
+
 				defer func() {
 					pc.producerCond.L.Lock()
 					atomic.AddInt64(&pc.interestedConsumers, -requests)
 					pc.consumerCond.Broadcast()
 					pc.producerCond.L.Unlock()
+					doReadSpan.End()
 				}()
 
 				var lastRelease func()
@@ -255,7 +275,11 @@ func (pc *producerConsumer[T, U]) start() {
 				} else {
 					first = false
 				}
-				media, release, err := pc.readWrapper.Read(pc.cancelCtx)
+
+				startLocalCtx, span := trace.StartSpan(startLocalCtx, "gostream::producerConsumer::readWrapper::Read")
+				media, release, err := pc.readWrapper.Read(startLocalCtx)
+				span.End()
+
 				ref := utils.NewRefCountedValue(struct{}{})
 				ref.Ref()
 
@@ -296,6 +320,9 @@ func (pc *producerConsumer[T, U]) Stop() {
 
 // assumes stateMu lock is held.
 func (pc *producerConsumer[T, U]) stop() {
+	_, span := trace.StartSpan(pc.cancelCtx, "gostream::producerConsumer::stop")
+	defer span.End()
+
 	pc.cancel()
 
 	pc.producerCond.L.Lock()
@@ -313,6 +340,9 @@ func (pc *producerConsumer[T, U]) stop() {
 }
 
 func (pc *producerConsumer[T, U]) stopOne() {
+	_, span := trace.StartSpan(pc.cancelCtx, "gostream::producerConsumer::stopOne")
+	defer span.End()
+
 	pc.stateMu.Lock()
 	defer pc.stateMu.Unlock()
 	pc.listenersMu.Lock()
@@ -352,6 +382,9 @@ type mediaStreamFromChannel[T any] struct {
 }
 
 func (ms *mediaStreamFromChannel[T]) Next(ctx context.Context) (T, func(), error) {
+	ctx, span := trace.StartSpan(ctx, "gostream::mediaStreamFromChannel::Next")
+	defer span.End()
+
 	var zero T
 	select {
 	case <-ms.cancelCtx.Done():
@@ -377,6 +410,9 @@ type mediaStream[T any, U any] struct {
 }
 
 func (ms *mediaStream[T, U]) Next(ctx context.Context) (T, func(), error) {
+	ctx, nextSpan := trace.StartSpan(ctx, "gostream::mediaStream::Next")
+	defer nextSpan.End()
+
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
 	// lock keeps us sequential and prevents misuse
@@ -405,6 +441,9 @@ func (ms *mediaStream[T, U]) Next(ctx context.Context) (T, func(), error) {
 	}
 
 	waitForNext := func() error {
+		_, span := trace.StartSpan(ctx, "gostream::mediaStream::Next::waitForNext")
+		defer span.End()
+
 		ms.prodCon.consumerCond.Wait()
 		ms.prodCon.consumerCond.L.Unlock()
 		if err := ms.cancelCtx.Err(); err != nil {
@@ -433,6 +472,9 @@ func (ms *mediaStream[T, U]) Next(ctx context.Context) (T, func(), error) {
 		}
 	}
 
+	ctx, prodConLockSpan := trace.StartSpan(ctx, "gostream::mediaStream::Next (waiting for ms.prodCon lock)")
+	defer prodConLockSpan.End()
+
 	// hold a read lock long enough before current.Ref can be dereffed
 	// due to a new current being set.
 	ms.prodCon.currentMu.RLock()
@@ -446,6 +488,13 @@ func (ms *mediaStream[T, U]) Next(ctx context.Context) (T, func(), error) {
 }
 
 func (ms *mediaStream[T, U]) Close(ctx context.Context) error {
+	if parentSpan := trace.FromContext(ctx); parentSpan != nil {
+		ms.prodCon.cancelCtx = trace.NewContext(ms.prodCon.cancelCtx, parentSpan)
+	}
+	var span *trace.Span
+	ms.prodCon.cancelCtx, span = trace.StartSpan(ms.prodCon.cancelCtx, "gostream::mediaStream::Close")
+	defer span.End()
+
 	ms.cancel()
 	ms.prodCon.errHandlersMu.Lock()
 	delete(ms.prodCon.errHandlers, ms)
@@ -500,6 +549,10 @@ func (ms *mediaSource[T, U]) Stream(ctx context.Context, errHandlers ...ErrorHan
 
 	prodCon.stateMu.Lock()
 	defer prodCon.stateMu.Unlock()
+
+	if currentSpan := trace.FromContext(ctx); currentSpan != nil {
+		prodCon.cancelCtx = trace.NewContext(prodCon.cancelCtx, currentSpan)
+	}
 
 	cancelCtx, cancel := context.WithCancel(prodCon.cancelCtx)
 	stream := &mediaStream[T, U]{
