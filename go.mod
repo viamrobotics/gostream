@@ -13,9 +13,9 @@ require (
 	github.com/gotesttools/gotestfmt/v2 v2.4.1
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.15.0
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
-	github.com/pion/mediadevices v0.4.1-0.20230605163757-e64f0d8697f9
+	github.com/pion/mediadevices v0.5.1-0.20230724160738-03c44ee80347
 	github.com/pion/rtp v1.7.13
-	github.com/pion/webrtc/v3 v3.2.6
+	github.com/pion/webrtc/v3 v3.2.11
 	github.com/pkg/errors v0.9.1
 	go.opencensus.io v0.24.0
 	go.uber.org/multierr v1.9.0
@@ -46,7 +46,7 @@ require (
 	github.com/benbjohnson/clock v1.3.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bkielbasa/cyclop v1.2.0 // indirect
-	github.com/blackjack/webcam v0.0.0-20230502173554-3b52e93e8607 // indirect
+	github.com/blackjack/webcam v0.0.0-20230509180125-87693b3f29dc // indirect
 	github.com/blizzy78/varnamelen v0.8.0 // indirect
 	github.com/bombsimon/wsl/v3 v3.4.0 // indirect
 	github.com/breml/bidichk v0.2.3 // indirect
@@ -246,7 +246,7 @@ require (
 	golang.org/x/crypto v0.10.0 // indirect
 	golang.org/x/exp v0.0.0-20220722155223-a9213eeb770e // indirect
 	golang.org/x/exp/typeparams v0.0.0-20230203172020-98cc5a0785f9 // indirect
-	golang.org/x/image v0.7.0 // indirect
+	golang.org/x/image v0.8.0 // indirect
 	golang.org/x/mod v0.8.0 // indirect
 	golang.org/x/net v0.11.0 // indirect
 	golang.org/x/oauth2 v0.4.0 // indirect
