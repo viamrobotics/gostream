@@ -604,8 +604,8 @@ func (ms *mediaSource[T, U]) Stream(ctx context.Context, errHandlers ...ErrorHan
 	var cancel context.CancelFunc
 	func() {
 		prodCon.cancelCtxMu.RLock()
+		defer prodCon.cancelCtxMu.RUnlock()
 		cancelCtx, cancel = context.WithCancel(prodCon.cancelCtx)
-		prodCon.cancelCtxMu.RUnlock()
 	}()
 	stream := &mediaStream[T, U]{
 		ms:        ms,
