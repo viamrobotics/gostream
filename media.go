@@ -120,6 +120,7 @@ type mediaSource[T any, U any] struct {
 type producerConsumer[T any, U any] struct {
 	rootCancelCtx           context.Context
 	cancelCtx               context.Context
+	interestedConsumers     int64
 	cancelCtxMu             *sync.RWMutex
 	cancel                  func()
 	mimeType                string
@@ -130,7 +131,6 @@ type producerConsumer[T any, U any] struct {
 	producerCond            *sync.Cond
 	consumerCond            *sync.Cond
 	condMu                  *sync.RWMutex
-	interestedConsumers     int64
 	errHandlers             map[*mediaStream[T, U]][]ErrorHandler
 	listeners               int
 	stateMu                 sync.Mutex
