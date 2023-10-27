@@ -1,7 +1,9 @@
 # gostream
 
-This library has been merged into [viamrobotics/rdk](https://github.com/viamrobotics/rdk/tree/62a90bf97859d77343c49be628acfd02d1a30758/gostream).
+> [!WARNING]  
+> This library has been merged into [viamrobotics/rdk](https://github.com/viamrobotics/rdk/tree/62a90bf97859d77343c49be628acfd02d1a30758/gostream) and is no longer maintained.
 
+---
 gostream is a library to simplify the streaming of images as video and audio chunks to audio to a series of WebRTC peers. The impetus for this existing was for doing simple GUI / audio/video streaming to a browser all within go with as little cgo as possible. The package will likely be refactored over time to support some more generalized use cases and as such will be in version 0 for the time being. Many parameters are hard coded and need to be configurable over time. Use at your own risk, and please file issues!
 
 <p align="center">
